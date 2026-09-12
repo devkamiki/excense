@@ -1,0 +1,24 @@
+services:
+  excense:
+    build: .
+    image: excense:dev
+    container_name: excense
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # First-run bootstrap only; remove after the dav user exists.
+      EXCENSE_PASSWORD: ${EXCENSE_PASSWORD:-}
+    ports:
+      - "${EXCENSE_PORT:-5232}:5232"
+    volumes:
+      - excense-data:/data
+
+volumes:
+  excense-data:
+
+# TLS: terminate at a reverse proxy (Caddy/Traefik) in front of :5232.
+# Example Caddyfile:
+#   cal.example.com {
+#       reverse_proxy excense:5232
+#   }
