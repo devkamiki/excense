@@ -1,16 +1,19 @@
 # excense
 
-Microsoft 365 → Android bridge. A Graph-backed gateway that exposes your
-Exchange Online **calendar**, **contacts** and **tasks** as **CalDAV / CardDAV**
-so any Android app (DAVx5 + your calendar/contacts/tasks app of choice) can
-read and write them — no Outlook, no Gmail, no Exchange ActiveSync client ID.
+Microsoft 365 → CalDAV/CardDAV. A Graph-backed gateway that exposes your
+Exchange Online **calendar**, **contacts** and **tasks** over the open
+CalDAV / CardDAV protocols, so any standards-based DAV client can read and
+write them — Thunderbird, GNOME, KDE, Apple Calendar & Contacts, Android
+via DAVx5, or anything else that speaks CalDAV/CardDAV. No Outlook, no
+Gmail, no Exchange ActiveSync client ID.
 
 ```
-┌───────────────┐   CalDAV/CardDAV    ┌────────────────────────┐   Microsoft Graph   ┌──────────────┐
-│ DAVx5 (phone) │ ◄────────────────► │ excense (Radicale DAV  │ ◄─────────────────► │ Exchange     │
-│ + calendar/   │     (HTTPS)        │ store + Graph bridge)  │    (OAuth, your     │ Online       │
-│ contacts/tasks│                    └────────────────────────┘     own client ID)  └──────────────┘
-└───────────────┘
+┌──────────────────────┐── CalDAV/CardDAV ──┌────────────────────────┐── Microsoft Graph ──┌──────────────┐
+│ any CalDAV/CardDAV   │◄──────────────────►│ excense: Radicale DAV  │◄───────────────────►│ Exchange     │
+│ client: Thunderbird, │      (HTTPS)       │ store + Graph bridge   │     (OAuth, your    │ Online       │
+│ GNOME, KDE, Apple,   │                    └────────────────────────┘     own client ID)  └──────────────┘
+│ Android (DAVx5), …   │
+└──────────────────────┘
 ```
 
 ## Why not Exchange ActiveSync?
@@ -29,8 +32,9 @@ read and write them — no Outlook, no Gmail, no Exchange ActiveSync client ID.
 - OAuth sign-in: Entra device-code flow, tokens persisted and refreshed.
 - Two-way sync of all calendar events, all contacts, and tasks from all
   your Todo lists into a Radicale store, and back.
-- CalDAV/CardDAV server (Radicale) with per-user basic auth, ready for
-  DAVx5. Email (IMAP/SMTP gateway) is the next milestone, not included yet.
+- CalDAV/CardDAV server (Radicale) with per-user basic auth, ready for any
+  DAV client. Email (IMAP/SMTP gateway) is the next milestone, not
+  included yet.
 
 ## 1. App registration (Entra) — usually no admin needed
 
@@ -97,21 +101,36 @@ docker compose exec excense excense auth        # device-code sign-in
 docker compose exec excense excense user-add me # or set EXCENSE_PASSWORD on first boot
 ```
 
-Put it behind TLS (Caddy/Traefik) — DAVx5 refuses plain HTTP:
+Put it behind TLS (Caddy/Traefik) — DAV clients generally refuse plain
+HTTP, DAVx5 included:
 ```caddy
 cal.example.com {
     reverse_proxy excense:5232
 }
 ```
 
-## 4. DAVx5 on Android
+## 4. Connecting clients
 
-- Add account:
-  - *Base URL*: `https://cal.example.com/me` (the user folder)
-  - *Username/password*: the `excense user-add` account
-- It will discover and offer: **Calendar** (*calendar*), **Contacts**
-  (*contacts*), **Tasks** (one collection per Todo list, `todo/<id>`).
-- Any calendar/contacts/tasks Android app can now use those accounts.
+Every CalDAV/CardDAV client needs the same three details:
+
+- **Base URL**: `https://cal.example.com/me/` (the per-user folder)
+- **Username / password**: the `excense user-add` account
+- Discovery then offers a **calendar** collection, a **contacts** address
+  book, and one **task list** collection per Microsoft To Do list
+  (`todo/<id>`).
+
+Client notes:
+
+- **Thunderbird** (Linux/macOS/Windows): *New Calendar → On the Network →
+  CalDAV* with the base URL; the same URL as a *CardDAV* remote address
+  book. Task lists appear as VTODO calendars.
+- **GNOME / KDE**: add a CalDAV/CardDAV account via GNOME Online Accounts
+  or KAccounts — Evolution, GNOME Calendar/Contacts and KOrganizer pick it
+  up from there.
+- **Apple** (macOS/iOS): Internet Accounts → *Other* → CalDAV / CardDAV.
+- **Android**: [DAVx5](https://www.davx5.com/) syncs the account into the
+  system; any calendar/contacts/tasks app can then use it (e.g.
+  [Tasks.org](https://tasks.org/) for the VTODO lists).
 
 ## Sync semantics
 
@@ -132,10 +151,34 @@ Two-way, last-write-wins per item:
 - [ ] Tasks: creation of new Todo lists from DAV
 - [ ] Encrypted token-at-rest, read-only mode, multi-user DAV accounts
 
+## Credits
+
+excense doesn't implement the DAV protocols — it stands on Radicale's
+shoulders:
+
+- [Radicale](https://radicale.org) is the CalDAV/CardDAV server doing all
+  of the actual protocol work. excense generates its configuration
+  (`radicale.conf`: bcrypt htpasswd auth, `owner_only` rights,
+  multifilesystem storage), syncs Microsoft Graph data into that store,
+  and launches Radicale as `python -m radicale`. Collections on the client
+  side are plain Radicale storage. Radicale is GPL-3.0 software and runs
+  here as a separate process — keep its license terms in mind if you
+  redistribute the combined bundle.
+
+Also used, with thanks:
+
+- [MSAL Python](https://github.com/AzureAD/microsoft-authentication-library-for-python)
+  — Entra device-code flow and token caching.
+- [vobject](https://github.com/eventable/vobject) — iCalendar / vCard
+  conversion between Graph and DAV.
+- [DavMail](https://davmail.sourceforge.io/) and the EAS-bridge projects —
+  prior art this design learned from.
+
 ## Notes / limitations
 
 - EAS certificate-based auth from third-party clients is being retired by
   Microsoft end of 2026 — this project deliberately never used it.
 - All-day event filtering on the date window has edge cases; the filter is
   skipped automatically if Graph rejects it.
-- Calendar fetch is bounded by `EXCENSE_CALENDAR_PAST/`FUTURE`_DAYS`.
+- Calendar fetch is bounded by `EXCENSE_CALENDAR_PAST_DAYS` /
+  `EXCENSE_CALENDAR_FUTURE_DAYS`.
