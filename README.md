@@ -102,7 +102,9 @@ docker compose exec excense excense user-add me # or set EXCENSE_PASSWORD on fir
 ```
 
 Until the first `user-add`, the server runs with an empty htpasswd: Radicale
-is up, but DAV logins return 401.
+is up, but DAV logins return 401. The container runs the Graph sync loop
+alongside the server — it retries every 30s until `excense auth` has
+produced a token.
 
 Put it behind TLS (Caddy/Traefik) — DAV clients generally refuse plain
 HTTP, DAVx5 included:

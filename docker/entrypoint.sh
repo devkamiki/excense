@@ -8,4 +8,11 @@ if [ ! -f "$EXCENSE_DATA_DIR/auth/htpasswd" ] && [ -n "$EXCENSE_PASSWORD" ]; the
   echo "$EXCENSE_PASSWORD" | excense user-add "$EXCENSE_USERNAME"
 fi
 
+# Serving implies syncing: run the Graph bridge alongside Radicale. The
+# loop retries until `excense auth` has produced a token, so it is safe to
+# start before the first sign-in.
+if [ "$1" = "serve" ]; then
+  (while true; do excense sync-loop || true; sleep 30; done) &
+fi
+
 exec excense "$@"

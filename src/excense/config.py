@@ -49,8 +49,12 @@ class Settings(BaseSettings):
 
     @property
     def graph_scopes(self) -> list[str]:
+        # offline_access / openid / profile are OIDC-reserved names: they
+        # must stay unqualified or Entra rejects the request (AADSTS70011).
+        reserved = {"offline_access", "openid", "profile"}
         return [
-            scope if scope.startswith("https://") else f"{GRAPH_RESOURCE}/{scope}"
+            scope if scope.startswith("https://") or scope in reserved
+            else f"{GRAPH_RESOURCE}/{scope}"
             for scope in self.delegated_scopes
         ]
 
