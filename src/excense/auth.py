@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import parse_qs, urlparse
 
 from msal import PublicClientApplication, SerializableTokenCache
 
@@ -63,6 +64,40 @@ class MsAuth:
         if "access_token" in result:
             return result
         raise AuthError(result.get("error_description") or "Device flow failed")
+
+    def auth_code_url(self) -> dict:
+        """Start a browser authorization-code flow with paste-back sign-in.
+
+        Conditional Access policies often ban the device-code flow (error
+        53003) while still allowing ordinary interactive browser sign-ins,
+        so `auth-web` is the fallback when `auth` is refused.
+        """
+        if not self.settings.client_id:
+            raise AuthError(
+                "EXCENSE_CLIENT_ID is not set. Register a public mobile/desktop "
+                "app in Entra (see README) and set it first."
+            )
+        return self._app.initiate_auth_code_flow(
+            self.settings.graph_scopes,
+            redirect_uri=self.settings.redirect_uri,
+            # Paste-back needs the code in the URL bar (query); form_post
+            # would bury it in a POST body no listener receives. PKCE binds
+            # the code to this verifier, so a copied-around code is inert.
+            response_mode="query",
+        )
+
+    def complete_auth_code(self, flow: dict, pasted_url: str) -> None:
+        """Finish the auth-code flow with the redirect URL pasted back."""
+        params = {
+            key: values[0]
+            for key, values in parse_qs(urlparse(pasted_url).query).items()
+        }
+        result = self._app.acquire_token_by_auth_code_flow(flow, params)
+        self._save()
+        if "access_token" not in result:
+            raise AuthError(
+                result.get("error_description") or "authorization-code flow failed"
+            )
 
     def _silent(self, *, force: bool = False) -> dict | None:
         accounts = self._app.get_accounts()

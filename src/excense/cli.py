@@ -20,6 +20,20 @@ def cmd_auth(settings: Settings, args) -> int:
     return 0
 
 
+def cmd_auth_web(settings: Settings, args) -> int:
+    auth = MsAuth(settings)
+    flow = auth.auth_code_url()
+    print("1. Open this URL in a browser (on any device that has one):")
+    print(flow["auth_uri"])
+    print("2. Sign in and approve. The page then fails to load at the")
+    print("   localhost redirect — that is expected. Copy the full URL")
+    print("   from the browser address bar.")
+    pasted = input("3. Paste that URL here: ").strip()
+    auth.complete_auth_code(flow, pasted)
+    print("OK: signed in, token cached.")
+    return 0
+
+
 def cmd_sync(settings: Settings, args) -> int:
     from excense.bridge.engine import sync_once
 
@@ -79,6 +93,10 @@ def parse_args(argv=None) -> tuple[Settings, argparse.Namespace]:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("auth", help="interactive OAuth device-code sign-in")
+    sub.add_parser(
+        "auth-web",
+        help="browser sign-in with paste-back, for tenants that block device-code",
+    )
     sub.add_parser("sync", help="run one sync cycle")
     sub.add_parser("sync-loop", help="run the sync loop forever")
     sub.add_parser("serve", help="run the CalDAV/CardDAV server")
@@ -99,6 +117,7 @@ def main(argv=None) -> int:
         return 1
     commands = {
         "auth": cmd_auth,
+        "auth-web": cmd_auth_web,
         "sync": cmd_sync,
         "sync-loop": cmd_sync_loop,
         "serve": cmd_serve,

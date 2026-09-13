@@ -29,7 +29,8 @@ Gmail, no Exchange ActiveSync client ID.
 
 ## What works (v0.1)
 
-- OAuth sign-in: Entra device-code flow, tokens persisted and refreshed.
+- OAuth sign-in: Entra device-code flow (`auth`) or browser paste-back
+  (`auth-web`), tokens persisted and refreshed.
 - Two-way sync of all calendar events, all contacts, and tasks from all
   your Todo lists into a Radicale store, and back.
 - CalDAV/CardDAV server (Radicale) with per-user basic auth, ready for any
@@ -49,7 +50,10 @@ Admin approval only comes into play if the tenant has disabled user consent
    - Supported account types: *Accounts in this organizational directory*
      (or *personal Microsoft accounts* if you're on an MSA — but you need a
      work/school mailbox for Exchange Online).
-2. **Authentication** → *Allow public client flows*: **Yes**.
+2. **Authentication** → *Allow public client flows*: **Yes**, and under
+   the same tab add redirect URI `http://localhost` (platform *Mobile and
+   desktop applications*) — that is what `excense auth-web` hands the
+   authorization code back through.
 3. **API permissions** → add these **delegated** Graph permissions:
    `Calendars.ReadWrite`, `Contacts.ReadWrite`, `Tasks.ReadWrite`,
    `User.Read`, plus (already present) `offline_access`. None of these
@@ -75,6 +79,20 @@ user consent. Two ways out:
   app identity rather than your own registration — treat it as a
   workaround, not a setup.
 
+A different blocker entirely: **error 53003** ("Your sign-in was
+successful but does not meet the criteria to access this resource").
+That is not a consent problem — it is Conditional Access restricting the
+*device-code flow*, which many tenants ban outright. Ordinary browser
+sign-ins usually still work:
+
+```sh
+excense auth-web   # prints a URL; sign in on any device with a browser,
+                   # then paste the failed http://localhost redirect URL back
+```
+
+Tokens are cached and refreshed silently afterwards, so this stays a
+one-time interactive step.
+
 ## 2. Local run (any Linux distro)
 
 Prerequisite: Python 3.11+ with venv/pip. Debian/Ubuntu:
@@ -97,7 +115,7 @@ tooling, then run the same commands unchanged.
 
 ```sh
 docker compose up -d --build
-docker compose exec excense excense auth        # device-code sign-in
+docker compose exec excense excense auth        # device-code sign-in (or auth-web if CA blocks it)
 docker compose exec excense excense user-add me # or set EXCENSE_PASSWORD on first boot
 ```
 

@@ -16,6 +16,10 @@ class Settings(BaseSettings):
 
     client_id: str = Field(default="", description="Entra application (client) ID")
     tenant: str = Field(default="common", description="Tenant ID/name or 'common'")
+    redirect_uri: str = Field(
+        default="http://localhost",
+        description="Redirect URI for `excense auth-web` paste-back sign-in",
+    )
     data_dir: Path = Field(default=Path("./data"), description="State root (tokens, store)")
 
     graph_api: str = Field(default="v1.0")
