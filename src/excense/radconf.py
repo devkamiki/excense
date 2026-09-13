@@ -7,6 +7,11 @@ from excense.config import Settings
 def build_radicale_config(settings: Settings) -> str:
     """Write data/radicale.conf and return its path."""
     settings.ensure_dirs()
+    if not settings.passwd_path.exists():
+        # Radicale aborts at startup if the htpasswd file is missing; an
+        # empty file means "no DAV users yet" so `serve` can come up
+        # before the first `user-add`.
+        settings.passwd_path.touch()
     text = f"""[server]
 hosts = {settings.host}:{settings.port}
 max_connections = 20

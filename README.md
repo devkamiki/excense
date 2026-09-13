@@ -101,6 +101,9 @@ docker compose exec excense excense auth        # device-code sign-in
 docker compose exec excense excense user-add me # or set EXCENSE_PASSWORD on first boot
 ```
 
+Until the first `user-add`, the server runs with an empty htpasswd: Radicale
+is up, but DAV logins return 401.
+
 Put it behind TLS (Caddy/Traefik) — DAV clients generally refuse plain
 HTTP, DAVx5 included:
 ```caddy
