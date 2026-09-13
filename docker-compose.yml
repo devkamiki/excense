@@ -18,7 +18,9 @@ volumes:
   excense-data:
 
 # TLS: terminate at a reverse proxy (Caddy/Traefik) in front of :5232.
+# Host-level proxy → upstream 127.0.0.1:5232 (pin IPv4; ::1 is unreliable).
+# Proxy inside the compose network → upstream "excense:5232".
 # Example Caddyfile:
 #   cal.example.com {
-#       reverse_proxy excense:5232
+#       reverse_proxy 127.0.0.1:5232
 #   }

@@ -110,9 +110,14 @@ Put it behind TLS (Caddy/Traefik) — DAV clients generally refuse plain
 HTTP, DAVx5 included:
 ```caddy
 cal.example.com {
-    reverse_proxy excense:5232
+    # Host-level proxy: pin the upstream to IPv4. Plain "localhost" can
+    # resolve to ::1, and Docker's IPv6 publishing does not forward on
+    # every setup (symptom: 502 with "dial tcp [::1]:5232" in Caddy logs).
+    reverse_proxy 127.0.0.1:5232
 }
 ```
+A proxy running *inside* the compose network can use the service name
+instead: `reverse_proxy excense:5232`.
 
 ## 4. Connecting clients
 

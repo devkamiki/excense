@@ -49,13 +49,16 @@ class Settings(BaseSettings):
 
     @property
     def graph_scopes(self) -> list[str]:
-        # offline_access / openid / profile are OIDC-reserved names: they
-        # must stay unqualified or Entra rejects the request (AADSTS70011).
+        # OIDC-reserved names (offline_access/openid/profile) must never be
+        # sent: MSAL injects them itself and raises ValueError if they appear
+        # in the input, while resource-qualified forms are rejected by Entra
+        # (AADSTS70011). delegated_scopes may still list them for the Entra
+        # app registration; they are simply stripped here.
         reserved = {"offline_access", "openid", "profile"}
         return [
-            scope if scope.startswith("https://") or scope in reserved
-            else f"{GRAPH_RESOURCE}/{scope}"
+            scope if scope.startswith("https://") else f"{GRAPH_RESOURCE}/{scope}"
             for scope in self.delegated_scopes
+            if scope not in reserved
         ]
 
     @property

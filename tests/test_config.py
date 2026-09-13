@@ -17,11 +17,9 @@ def test_env_overrides(monkeypatch, tmp_path: Path):
     assert s.port == 9999
     assert s.state_db_path.parent == tmp_path / "state"
     assert any(scope.endswith("Calendars.ReadWrite") for scope in s.graph_scopes)
-    assert all(
-        scope.startswith("https://") or scope in {"offline_access", "openid", "profile"}
-        for scope in s.graph_scopes
-    )
-    assert "offline_access" in s.graph_scopes  # must stay unqualified (AADSTS70011)
+    assert all(scope.startswith("https://") for scope in s.graph_scopes)
+    # MSAL injects the OIDC-reserved scopes itself and refuses them as input
+    assert not {"offline_access", "openid", "profile"} & set(s.graph_scopes)
 
 
 def test_defaults():
